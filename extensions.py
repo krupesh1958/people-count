@@ -5,7 +5,6 @@ factory located in run.py
 """
 from __future__ import annotations
 
-import json
 import datetime
 import logging
 import argparse
@@ -33,7 +32,7 @@ logger = logging.getLogger(__name__)
 frames = FPS().start()
 
 
-writer = None
+writer = width = height = None
 total_frames = total_down = total_up = 0
 trackable_objects = dict()
 tracker, total, move_in, move_out, in_time, out_time = ([],) * 6
@@ -44,7 +43,6 @@ __all__ = [
     "logger",
     "dlib",
     "VideoStream",
-    "config",
     "argparse",
     "zip_longest",
     "csv",
@@ -65,4 +63,6 @@ __all__ = [
     "total_up",
     "time",
     "writer",
+    "width",
+    "height"
 ]

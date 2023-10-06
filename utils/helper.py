@@ -19,10 +19,10 @@ def parse_arguments() -> argparse[object]:
     
     ap.add_argument("-o", "--output", type=str,
                     help="Path to optional output video file")
-    
+
     ap.add_argument("-c", "--confidence", type=float, default=0.4,
                     help="Minimum probability to filter weak detections")
-    
+
     ap.add_argument("-s", "--skip-frames", type=int, default=30,
                     help="# of skip frames between detections")
 	
@@ -32,15 +32,3 @@ def parse_arguments() -> argparse[object]:
     args = vars(ap.parse_args())
     return args
 
-
-def logs(*args: list(str)) -> None:
-	"""
-	Function to counting data and append data on counting.csv
-	"""
-	export_data: tuple(str) = zip_longest(*args, fillvalue="")
-
-	file = open("utils/logs/people_couting.csv", "w", newline="")
-	write = csv.write(file, quoting=csv.QUOTE_NONE)
-	if file.tell() == 0:    # Check if header row are exist or not
-		write.writerow(*args)
-		write.writerows(export_data)

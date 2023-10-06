@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from extensions import *
 from tracker.centroid import CentroidTracker as Centroid
-from utils.helper import parse_arguments, logs
+from tracker.track import TrackableObject as TrackObj
+from utils.helper import parse_arguments
 
 
 args = parse_arguments()
@@ -24,31 +25,31 @@ else:
 
 # Instantiate our centroid, then initialize a list to store
 # each of our dlib correlation trackers
-centroid = Centroid(maxDisappeared=40, maxDistance=50)
+centroid_tracker = Centroid(maxDisappeared=40, maxDistance=50)
 
 while True:
 	# Grab the next frame and handle if we are reading from either
 	# videoCapture or videoStream
-	frame = video_stream()
+	frame = video_stream.read()
 	frame = frame[1] if args.get("input", False) else frame
 
-	assert not args["input"] and frame, "We did not grab a frame"
+	if args["input"] is not None and frame is None:
+		break
 
 	# Resize the frame to have a maximum width of 500p, then convert
 	# the frame from BGR to RGB for dlib
 	frame = resize(frame, width=500)
-	rgb = cv.cvtColor(frame, cv.COLOR_BAYER_BG2BGR)
+	rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
 
 	if not width or not height:
-		width, height = frame.shape[:2]
+		height, width = frame.shape[:2]
 
-	# Initialize current status
+
 	status = "Waiting"
 	rects = []
 
 	# Detecting or Tracking
 	if total_frames % args["skip_frames"] == 0:
-		status = "Detecting"
 		trackers = []
 
 		# Frame to blob and obtain the detections
@@ -63,13 +64,14 @@ while True:
 				idx = int(detections[0, 0, itr, 1])
 				if idx != 15:
 					continue
-				box = detections[0, 0, itr, 3:7] * np.array[[width, height, width, height]]
+				box = detections[0, 0, itr, 3:7] * np.array([width, height, width, height])
+				(start_x, start_y, end_x, end_y) = box.astype("int")
 
 				# Construct a dlib rectangle object from the bounding
 				tracker = dlib.correlation_tracker()
-				rect = dlib.rectangle(box.astype("int"))
+				rect = dlib.rectangle(start_x, start_y, end_x, end_y)
 				tracker.start_track(rgb, rect)
-				tracker.append(tracker)
+				trackers.append(tracker)
 
 	else:
 		for tracker in trackers:
@@ -92,25 +94,18 @@ while True:
 	# moving 'up' or 'down'
 	cv.line(
 		img=frame,
-		pt1=(0, height // 2),
-		pt2=(width, height // 2),
+		pt1=(0, height-100 // 2),
+		pt2=(width, height-100 // 2),
+		color=(0, 0, 0),
 		thickness=3
 	)
-	cv.putText(
-		img=frame,
-		text="-Prediction border - Entrance-",
-		org=(10, height - (itr * 20) + 200),
-		fontFace=cv.FONT_HERSHEY_SIMPLEX,
-		fontScale=0.5,
-		thickness=1			
-	)
-	objects = centroid.update(rects)
+	objects = centroid_tracker.update(rects)
 
 	for (object_id, centroid) in objects.items():
 		to = trackable_objects.get(object_id, None)
 
 		if not to:
-			trackable_objects(object_id, centroid)
+			to = TrackObj(object_id, centroid)
 		else:
 			# The difference between the y-coordinate of the `current`
 			# centroid and the mean of `previous` centroids will tell
@@ -142,32 +137,11 @@ while True:
 		# store the trackable object in our dictionary
 		trackable_objects[object_id] = to
 
-		# Draw centroid of the object with id
-		text = "ID {}".format(object_id)
-		cv.putText(
-			img=frame,
-			text="ID {}".format(object_id),
-			org=(centroid[0] - 10, centroid[1] - 10),
-			fontFace=cv.FONT_HERSHEY_SIMPLEX,
-			fontScale=0.5,
-			color=(255, 255, 255),
-			thickness=-1
-		)
-		cv.circle(
-			img=frame,
-			center=(centroid[0], centroid[1]),
-			radius=4,
-			color=(255, 255, 255),
-			thickness=-1
-		)
-
 	info_status = [
-		("Exit", total_up),
-		("Enter", total_down),
 		("Status", status),
+		("Count", (total_down - total_up))
 	]
 
-	info_count = True
 	for (itr, (key, value)) in enumerate(info_status):
 		text = "%s: %s" % (key, value)
 		cv.putText(
@@ -176,21 +150,9 @@ while True:
 			org=(10, height - ((itr * 20) + 20)),
 			fontFace=cv.FONT_HERSHEY_SIMPLEX,
 			fontScale=0.6,
+			color=(0, 0, 0),
 			thickness=2
 		)
-		if info_count:
-			cv.putText(
-				img=frame,
-				text=("Total people inside", ', '.join(map(str, total))),
-				org=(265, height - (1 * 20) + 60),
-				fontFace=cv.FONT_HERSHEY_SIMPLEX,
-				fontScale=0.5,
-				color=(255, 255, 255),
-				thickness=2
-			)
-
-	if config["Log"]:
-		logs(move_in, in_time, move_out, out_time)
 
 	if writer is not None:
 		writer.write(frame)
