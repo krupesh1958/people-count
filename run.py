@@ -8,6 +8,10 @@ from tracker.track import TrackableObject as TrackObj
 from utils.helper import parse_arguments
 
 
+__author__ = "Krupesh1958 | Arjun-234"
+__version__ = 0.1
+
+
 args = parse_arguments()
 
 # Load serialized model from disk with `Deep neural network`
@@ -25,7 +29,7 @@ else:
 
 # Instantiate our centroid, then initialize a list to store
 # each of our dlib correlation trackers
-centroid_tracker = Centroid(maxDisappeared=40, maxDistance=50)
+centroid_tracker = Centroid(max_disappeared=40, max_distance=50)
 
 while True:
 	# Grab the next frame and handle if we are reading from either
